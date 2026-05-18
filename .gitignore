@@ -1,16 +1,17 @@
 # Python
-backend/venv/
+credit-risk-backend/venv/
 __pycache__/
 *.pyc
 
 # Node
-frontend/node_modules/
+credit-risk-frontend/node_modules/
 
 # ML Models
 *.pkl
 
-# Env
+# Environment Variables
 .env
 
-# Misc
+# OS files
 .DS_Store
+Thumbs.db
