@@ -2,140 +2,121 @@ from fastapi import FastAPI
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.schemas.loan_schema import LoanApplication
-
 import joblib
 import json
 
+from app.schemas.loan_schema import LoanApplication
 from app.utils.preprocess import preprocess_input
-
-# Database imports
+from app.auth.deps import get_current_user
+from fastapi import Depends
 from app.database.db import engine, SessionLocal
 from app.database.models import Base, Prediction
+from app.database.models import User
+from app.auth.routes import router as auth_router
 
-
-# Create tables
+# create tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-# CORS configuration
+app.include_router(auth_router)
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
-
-    allow_origins=[
-        "http://localhost:5173"
-    ],
-
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
-
     allow_methods=["*"],
-
     allow_headers=["*"],
 )
 
+# model
+model = joblib.load("app/model/final_xgboost_model.pkl")
 
-# Load trained model
-model = joblib.load(
-    "app/model/final_xgboost_model.pkl"
-)
-
-
-# Load feature columns
-with open(
-    "app/model/feature_columns.json",
-    "r"
-) as f:
+with open("app/model/feature_columns.json", "r") as f:
     feature_columns = json.load(f)
 
 
 @app.get("/")
 def home():
-
-    return {
-        "message": "Credit Risk API Running"
-    }
+    return {"message": "Credit Risk API Running"}
 
 
+# =========================
+# FIXED PREDICT ENDPOINT
+# =========================
 @app.post("/predict")
-def predict_loan(data: LoanApplication):
+def predict_loan(
+    data: LoanApplication,
+    current_user: User = Depends(get_current_user)
+):
 
-    # Convert input to dataframe
-    input_data = preprocess_input(
-        data.dict(),
-        feature_columns
-    )
-
-    # Prediction
-    prediction = model.predict(input_data)[0]
-
-    probability = float(
-        model.predict_proba(input_data)[0][1]
-    )
-
-    # Risk categorization
-    if probability < 0.3:
-        risk = "Low Risk"
-
-    elif probability < 0.7:
-        risk = "Medium Risk"
-
-    else:
-        risk = "High Risk"
-
-    # Save to database
     db = SessionLocal()
 
-    prediction_record = Prediction(
+    try:
+        input_data = preprocess_input(data.dict(), feature_columns)
+
+        prediction = model.predict(input_data)[0]
+        probability = float(model.predict_proba(input_data)[0][1])
+
+        risk = (
+            "Low Risk" if probability < 0.3
+            else "Medium Risk" if probability < 0.7
+            else "High Risk"
+        )
+
+        prediction_record = Prediction(
+        user_id=current_user.id,   # 🔥 THIS WAS MISSING
         loan_amnt=data.loan_amnt,
         annual_inc=data.annual_inc,
         int_rate=data.int_rate,
-
         prediction=int(prediction),
-
         default_probability=probability,
-
         risk_category=risk
     )
+        print("USER:", current_user.id, current_user.email)
 
-    db.add(prediction_record)
+        db.add(prediction_record)
+        db.commit()
 
-    db.commit()
+        return {
+            "prediction": int(prediction),
+            "default_probability": probability,
+            "risk_category": risk
+        }
 
-    db.close()
+    except Exception as e:
+        print("PREDICT ERROR:", e)
+        return {"error": str(e)}
 
-    # API response
-    return {
-        "prediction": int(prediction),
-        "default_probability": probability,
-        "risk_category": risk
-    }
-
+    finally:
+        db.close()
+    
+# =========================
+# HISTORY (FIXED SESSION SAFETY)
+# =========================
 @app.get("/history")
-def get_prediction_history():
+def get_prediction_history(current_user: User = Depends(get_current_user)):
 
     db = SessionLocal()
 
-    predictions = db.query(Prediction).all()
+    try:
+        predictions = db.query(Prediction).filter(
+            Prediction.user_id == current_user.id
+        ).order_by(Prediction.id.desc()).all()
 
-    result = []
+        return [
+            {
+                "id": p.id,
+                "loan_amount": p.loan_amnt,
+                "annual_income": p.annual_inc,
+                "interest_rate": p.int_rate,
+                "prediction": p.prediction,
+                "default_probability": p.default_probability,
+                "risk_category": p.risk_category,
+                "created_at": str(p.created_at)
+            }
+            for p in predictions
+        ]
 
-    for p in predictions:
-
-        result.append({
-            "id": p.id,
-            "loan_amount": p.loan_amnt,
-            "annual_income": p.annual_inc,
-            "interest_rate": p.int_rate,
-
-            "prediction": p.prediction,
-
-            "default_probability": p.default_probability,
-
-            "risk_category": p.risk_category,
-
-            "created_at": p.created_at
-        })
-
-    db.close()
-
-    return result
+    finally:
+        db.close()

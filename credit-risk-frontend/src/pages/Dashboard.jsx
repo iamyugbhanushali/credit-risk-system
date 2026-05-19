@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import Navbar from "../components/Navbar";
 import LoanForm from "../components/LoanForm";
@@ -10,58 +11,61 @@ import {
   predictLoan
 } from "../services/api";
 
-
 export default function Dashboard() {
 
+  const navigate = useNavigate();
+
   const [prediction, setPrediction] = useState(null);
-
   const [history, setHistory] = useState([]);
-
   const [loading, setLoading] = useState(false);
 
+  // 🔥 AUTH GUARD + INITIAL LOAD
+  useEffect(() => {
+    const token = localStorage.getItem("token");
 
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    loadHistory();
+  }, []);
+
+  // 🔥 LOAD HISTORY
   async function loadHistory() {
-
     try {
-
       const data = await getHistory();
 
-      setHistory(data.reverse());
+      if (Array.isArray(data)) {
+        setHistory([...data].reverse());
+      } else {
+        setHistory([]);
+      }
 
     } catch (error) {
-
-      console.error(error);
+      console.error("History error:", error);
+      setHistory([]);
     }
   }
 
-
-  useEffect(() => {
-
-    loadHistory();
-
-  }, []);
-
-
+  // 🔥 HANDLE PREDICTION
   async function handlePrediction(formData) {
-
     setLoading(true);
 
     try {
-
       const result = await predictLoan(formData);
 
       setPrediction(result);
 
-      loadHistory();
+      await loadHistory();
 
     } catch (error) {
-
-      console.error(error);
+      console.error("Prediction error:", error);
+      alert(error.response?.data?.detail || "Prediction failed");
     }
 
     setLoading(false);
   }
-
 
   return (
     <div className="min-h-screen bg-gray-100">

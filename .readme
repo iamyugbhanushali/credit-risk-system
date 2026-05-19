@@ -1,0 +1,94 @@
+# Credit Risk Prediction System
+
+An AI-powered Credit Risk Prediction System built using FastAPI, React, PostgreSQL, and Machine Learning.
+
+This system predicts whether a borrower is likely to default on a loan and categorizes the applicant into different risk levels.
+
+---
+
+# Features Added
+
+## Authentication System
+- JWT-based authentication
+- User registration and login
+- Google OAuth login integration
+- Protected backend routes using JWT
+- Persistent login using localStorage
+
+## Frontend Improvements
+- Added authentication flow
+- Added protected dashboard access
+- Added profile section in navbar
+- Added logout functionality
+- Added prediction history table
+- Added loading states and error handling
+
+## Backend Improvements
+- Protected `/predict` endpoint
+- Protected `/history` endpoint
+- Linked predictions with authenticated users
+- Added Google OAuth verification
+- Added JWT token generation and validation
+- Added user-specific prediction history
+
+## Database Changes
+- Added `User` model
+- Linked `Prediction` table with users using `user_id`
+- Added authentication-related schemas and routes
+
+---
+
+# Tech Stack
+
+## Frontend
+- React
+- Vite
+- Tailwind CSS
+- Axios
+- React Router
+- Google OAuth
+
+## Backend
+- FastAPI
+- SQLAlchemy
+- PostgreSQL
+- JWT Authentication
+- Google OAuth
+- Pydantic
+
+## Machine Learning
+- XGBoost
+- Scikit-learn
+- Pandas
+- NumPy
+
+---
+
+# Project Structure
+
+```txt
+credit-risk-system/
+│
+├── credit-risk-backend/
+│   ├── app/
+│   │   ├── auth/
+│   │   ├── database/
+│   │   ├── model/
+│   │   ├── schemas/
+│   │   ├── utils/
+│   │   └── main.py
+│   │
+│   ├── requirements.txt
+│   └── .env
+│
+├── credit-risk-frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   └── App.jsx
+│   │
+│   └── package.json
+│
+└── README.md
