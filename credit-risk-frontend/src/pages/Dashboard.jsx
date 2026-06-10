@@ -1,70 +1,57 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
 import Navbar from "../components/Navbar";
-import LoanForm from "../components/LoanForm";
-import PredictionCard from "../components/PredictionCard";
-import HistoryTable from "../components/HistoryTable";
 
-import {
-  getHistory,
-  predictLoan
-} from "../services/api";
+import { getAccounts } from "../services/accountApi";
+import { getTransactions } from "../services/transactionApi";
+import { getHistory } from "../services/api";
 
 export default function Dashboard() {
 
-  const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    accounts: 0,
+    transactions: 0,
+    predictions: 0,
+    balance: 0
+  });
 
-  const [prediction, setPrediction] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // 🔥 AUTH GUARD + INITIAL LOAD
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    loadHistory();
+    loadData();
   }, []);
 
-  // 🔥 LOAD HISTORY
-  async function loadHistory() {
-    try {
-      const data = await getHistory();
-
-      if (Array.isArray(data)) {
-        setHistory([...data].reverse());
-      } else {
-        setHistory([]);
-      }
-
-    } catch (error) {
-      console.error("History error:", error);
-      setHistory([]);
-    }
-  }
-
-  // 🔥 HANDLE PREDICTION
-  async function handlePrediction(formData) {
-    setLoading(true);
+  async function loadData() {
 
     try {
-      const result = await predictLoan(formData);
 
-      setPrediction(result);
+      const accounts =
+        await getAccounts();
 
-      await loadHistory();
+      const transactions =
+        await getTransactions();
 
-    } catch (error) {
-      console.error("Prediction error:", error);
-      alert(error.response?.data?.detail || "Prediction failed");
+      const predictions =
+        await getHistory();
+
+      const totalBalance =
+        accounts.reduce(
+          (sum, acc) =>
+            sum + acc.balance,
+          0
+        );
+
+      setStats({
+        accounts: accounts.length,
+        transactions:
+          transactions.length,
+        predictions:
+          predictions.length,
+        balance:
+          totalBalance
+      });
+
+    } catch(error) {
+      console.error(error);
     }
 
-    setLoading(false);
   }
 
   return (
@@ -72,22 +59,41 @@ export default function Dashboard() {
 
       <Navbar />
 
-      <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="max-w-7xl mx-auto p-6">
 
-        <LoanForm
-          onSubmit={handlePrediction}
-          loading={loading}
-        />
+        <h1 className="text-4xl font-bold mb-8">
+          Banking Dashboard
+        </h1>
 
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-          <PredictionCard
-            prediction={prediction}
-          />
+          <div className="bg-white rounded-xl shadow p-6">
+            <p>Total Accounts</p>
+            <h2 className="text-3xl font-bold">
+              {stats.accounts}
+            </h2>
+          </div>
 
-          <HistoryTable
-            history={history}
-          />
+          <div className="bg-white rounded-xl shadow p-6">
+            <p>Total Balance</p>
+            <h2 className="text-3xl font-bold">
+              ₹{stats.balance}
+            </h2>
+          </div>
+
+          <div className="bg-white rounded-xl shadow p-6">
+            <p>Transactions</p>
+            <h2 className="text-3xl font-bold">
+              {stats.transactions}
+            </h2>
+          </div>
+
+          <div className="bg-white rounded-xl shadow p-6">
+            <p>Credit Checks</p>
+            <h2 className="text-3xl font-bold">
+              {stats.predictions}
+            </h2>
+          </div>
 
         </div>
 

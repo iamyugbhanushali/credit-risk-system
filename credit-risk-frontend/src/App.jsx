@@ -5,61 +5,89 @@ import {
 } from "react-router-dom";
 
 import Login from "./pages/Login";
-
 import Register from "./pages/Register";
 
 import Dashboard from "./pages/Dashboard";
+import Predictions from "./pages/Predictions";
+import Accounts from "./pages/Accounts";
+import Transactions from "./pages/Transactions";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
-
 
 function App() {
 
   return (
+    <BrowserRouter>
 
-      <BrowserRouter>
+      <Routes>
 
-          <Routes>
+        {/* Public Routes */}
 
-              {/* Public Routes */}
+        <Route
+          path="/login"
+          element={<Login />}
+        />
 
-              <Route
-                  path="/login"
-                  element={<Login />}
-              />
+        <Route
+          path="/register"
+          element={<Register />}
+        />
 
-              <Route
-                  path="/register"
-                  element={<Register />}
-              />
+        {/* Banking Dashboard */}
 
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
 
-              {/* Protected Dashboard */}
+        {/* Credit Risk Module */}
 
-              <Route
-                  path="/dashboard"
-                  element={
-                      <ProtectedRoute>
+        <Route
+          path="/predictions"
+          element={
+            <ProtectedRoute>
+              <Predictions />
+            </ProtectedRoute>
+          }
+        />
 
-                          <Dashboard />
+        {/* Accounts */}
 
-                      </ProtectedRoute>
-                  }
-              />
+        <Route
+          path="/accounts"
+          element={
+            <ProtectedRoute>
+              <Accounts />
+            </ProtectedRoute>
+          }
+        />
 
+        {/* Transactions */}
 
-              {/* Default Route */}
+        <Route
+          path="/transactions"
+          element={
+            <ProtectedRoute>
+              <Transactions />
+            </ProtectedRoute>
+          }
+        />
 
-              <Route
-                  path="*"
-                  element={<Login />}
-              />
+        {/* Default */}
 
-          </Routes>
+        <Route
+          path="*"
+          element={<Login />}
+        />
 
-      </BrowserRouter>
+      </Routes>
+
+    </BrowserRouter>
   );
 }
-
 
 export default App;

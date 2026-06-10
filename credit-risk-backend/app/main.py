@@ -19,6 +19,8 @@ from app.database.models import (
 from app.schemas.account_schema import (
     AccountCreate
 )
+from app.database.models import Transaction
+from app.schemas.transaction_schema import TransactionRequest
 from app.auth.routes import router as auth_router
 
 # create tables
@@ -190,6 +192,119 @@ def get_accounts(
                 "status": a.status
             }
             for a in accounts
+        ]
+
+    finally:
+        db.close()
+
+
+@app.post("/deposit")
+def deposit_money(
+    data: TransactionRequest,
+    current_user: User = Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    try:
+
+        account = db.query(Account).filter(
+            Account.id == data.account_id,
+            Account.user_id == current_user.id
+        ).first()
+
+        if not account:
+            return {"error": "Account not found"}
+
+        account.balance += data.amount
+
+        transaction = Transaction(
+            account_id=account.id,
+            transaction_type="DEPOSIT",
+            amount=data.amount,
+            description=data.description
+        )
+
+        db.add(transaction)
+        db.commit()
+
+        return {
+            "message": "Deposit successful",
+            "new_balance": account.balance
+        }
+
+    finally:
+        db.close()
+
+
+@app.post("/withdraw")
+def withdraw_money(
+    data: TransactionRequest,
+    current_user: User = Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    try:
+
+        account = db.query(Account).filter(
+            Account.id == data.account_id,
+            Account.user_id == current_user.id
+        ).first()
+
+        if not account:
+            return {"error": "Account not found"}
+
+        if account.balance < data.amount:
+            return {"error": "Insufficient balance"}
+
+        account.balance -= data.amount
+
+        transaction = Transaction(
+            account_id=account.id,
+            transaction_type="WITHDRAW",
+            amount=data.amount,
+            description=data.description
+        )
+
+        db.add(transaction)
+        db.commit()
+
+        return {
+            "message": "Withdrawal successful",
+            "new_balance": account.balance
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/transactions")
+def get_transactions(
+    current_user: User = Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    try:
+
+        transactions = (
+            db.query(Transaction)
+            .join(Account)
+            .filter(Account.user_id == current_user.id)
+            .order_by(Transaction.id.desc())
+            .all()
+        )
+
+        return [
+            {
+                "id": t.id,
+                "type": t.transaction_type,
+                "amount": t.amount,
+                "description": t.description,
+                "created_at": str(t.created_at)
+            }
+            for t in transactions
         ]
 
     finally:

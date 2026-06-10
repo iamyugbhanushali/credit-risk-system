@@ -172,6 +172,11 @@ class Account(Base):
         back_populates="accounts"
     )
 
+    transactions = relationship(
+    "Transaction",
+    back_populates="account"
+)
+
 
 class Prediction(Base):
     __tablename__ = "predictions"
@@ -193,3 +198,37 @@ class Prediction(Base):
 
     user = relationship("User", back_populates="predictions")
 
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    account_id = Column(
+        Integer,
+        ForeignKey("accounts.id")
+    )
+
+    transaction_type = Column(
+        String,
+        nullable=False
+    )
+
+    amount = Column(
+        Float,
+        nullable=False
+    )
+
+    description = Column(
+        String,
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    account = relationship(
+        "Account",
+        back_populates="transactions"
+    )
