@@ -10,8 +10,15 @@ from app.utils.preprocess import preprocess_input
 from app.auth.deps import get_current_user
 from fastapi import Depends
 from app.database.db import engine, SessionLocal
-from app.database.models import Base, Prediction
-from app.database.models import User
+from app.database.models import (
+    Base,
+    User,
+    Prediction,
+    Account
+)
+from app.schemas.account_schema import (
+    AccountCreate
+)
 from app.auth.routes import router as auth_router
 
 # create tables
@@ -116,6 +123,73 @@ def get_prediction_history(current_user: User = Depends(get_current_user)):
                 "created_at": str(p.created_at)
             }
             for p in predictions
+        ]
+
+    finally:
+        db.close()
+
+# =========================
+# ACCOUNT CREATION
+# =========================
+@app.post("/accounts")
+def create_account(
+    data: AccountCreate,
+    current_user: User = Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    try:
+
+        account_count = db.query(Account).count()
+
+        account_number = (
+            f"ACC{100000 + account_count + 1}"
+        )
+
+        account = Account(
+            user_id=current_user.id,
+            account_number=account_number,
+            account_type=data.account_type,
+            balance=0.0,
+            status="Active"
+        )
+
+        db.add(account)
+        db.commit()
+        db.refresh(account)
+
+        return {
+            "message": "Account Created",
+            "account_number": account.account_number
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/accounts")
+def get_accounts(
+    current_user: User = Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    try:
+
+        accounts = db.query(Account).filter(
+            Account.user_id == current_user.id
+        ).all()
+
+        return [
+            {
+                "id": a.id,
+                "account_number": a.account_number,
+                "account_type": a.account_type,
+                "balance": a.balance,
+                "status": a.status
+            }
+            for a in accounts
         ]
 
     finally:

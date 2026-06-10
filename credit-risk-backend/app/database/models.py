@@ -106,16 +106,71 @@ from app.database.db import Base
 
 
 class User(Base):
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+
     name = Column(String, nullable=False)
+
     email = Column(String, unique=True, nullable=False)
+
     password = Column(String, nullable=False)
+
     role = Column(String, default="borrower")
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    predictions = relationship("Prediction", back_populates="user")
+    predictions = relationship(
+        "Prediction",
+        back_populates="user"
+    )
+
+    accounts = relationship(
+        "Account",
+        back_populates="user"
+    )
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id")
+    )
+
+    account_number = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    account_type = Column(
+        String,
+        default="Savings"
+    )
+
+    balance = Column(
+        Float,
+        default=0.0
+    )
+
+    status = Column(
+        String,
+        default="Active"
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
+
+    user = relationship(
+        "User",
+        back_populates="accounts"
+    )
 
 
 class Prediction(Base):
@@ -137,3 +192,4 @@ class Prediction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="predictions")
+
