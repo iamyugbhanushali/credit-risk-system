@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import joblib
 import json
 
-from app.schemas.loan_schema import LoanApplication
+from app.schemas.loan_schema import LoanApplication as LoanPredictionInput
 from app.utils.preprocess import preprocess_input
 from app.auth.deps import get_current_user
 from fastapi import Depends
@@ -14,13 +14,18 @@ from app.database.models import (
     Base,
     User,
     Prediction,
-    Account
+    Account,
+    Transaction,
+    Transfer,
+    Beneficiary,
+    LoanApplication,
+    FinancialHealthScore
 )
-from app.schemas.account_schema import (
-    AccountCreate
-)
-from app.database.models import Transaction
+from app.schemas.account_schema import AccountCreate
 from app.schemas.transaction_schema import TransactionRequest
+from app.schemas.transfer_schema import TransferRequest
+from app.schemas.beneficiary_schema import BeneficiaryCreate
+from app.schemas.loan_application_schema import LoanApplicationCreate
 from app.auth.routes import router as auth_router
 
 # create tables
@@ -55,7 +60,7 @@ def home():
 # =========================
 @app.post("/predict")
 def predict_loan(
-    data: LoanApplication,
+    data: LoanPredictionInput,
     current_user: User = Depends(get_current_user)
 ):
 
@@ -306,6 +311,118 @@ def get_transactions(
             }
             for t in transactions
         ]
+
+    finally:
+        db.close()
+
+
+@app.post("/transfer")
+def transfer_money(
+    data: TransferRequest,
+    current_user: User = Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    try:
+        source_account = db.query(Account).filter(
+            Account.id == data.source_account_id,
+            Account.user_id == current_user.id
+        ).first()
+
+        if not source_account:
+            return {"error": "Source account not found"}
+
+        if source_account.account_number == data.destination_account_number:
+            return {"error": "Cannot transfer to the same account"}
+
+        destination_account = db.query(Account).filter(
+            Account.account_number == data.destination_account_number
+        ).first()
+
+        if not destination_account:
+            return {"error": "Destination account not found"}
+
+        if source_account.balance < data.amount:
+            return {"error": "Insufficient balance"}
+
+        source_account.balance -= data.amount
+        destination_account.balance += data.amount
+
+        transfer_record = Transfer(
+            source_account_id=source_account.id,
+            destination_account_id=destination_account.id,
+            amount=data.amount,
+            description=data.description,
+            status="COMPLETED"
+        )
+
+        db.add(transfer_record)
+
+        db.add(Transaction(
+            account_id=source_account.id,
+            transaction_type="TRANSFER_OUT",
+            amount=data.amount,
+            description=f"Transfer to {destination_account.account_number}: {data.description or ''}".strip()
+        ))
+
+        db.add(Transaction(
+            account_id=destination_account.id,
+            transaction_type="TRANSFER_IN",
+            amount=data.amount,
+            description=f"Transfer from {source_account.account_number}: {data.description or ''}".strip()
+        ))
+
+        db.commit()
+
+        return {
+            "message": "Transfer successful",
+            "new_balance": source_account.balance
+        }
+
+    finally:
+        db.close()
+
+
+@app.get("/transfers")
+def get_transfers(
+    current_user: User = Depends(get_current_user)
+):
+
+    db = SessionLocal()
+
+    try:
+        transfers = (
+            db.query(Transfer)
+            .order_by(Transfer.id.desc())
+            .all()
+        )
+
+        results = []
+
+        for transfer in transfers:
+            if transfer.source_account and transfer.source_account.user_id == current_user.id:
+                direction = "Sent"
+                counterparty = transfer.destination_account.account_number
+            elif transfer.destination_account and transfer.destination_account.user_id == current_user.id:
+                direction = "Received"
+                counterparty = transfer.source_account.account_number
+            else:
+                continue
+
+            results.append({
+                "id": transfer.id,
+                "direction": direction,
+                "source_account_number": transfer.source_account.account_number,
+                "destination_account_number": transfer.destination_account.account_number,
+                "amount": transfer.amount,
+                "description": transfer.description,
+                "status": transfer.status,
+                "created_at": str(transfer.created_at),
+                "counterparty": counterparty
+            })
+
+        return results
 
     finally:
         db.close()

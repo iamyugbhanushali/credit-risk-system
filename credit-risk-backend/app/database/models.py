@@ -131,6 +131,22 @@ class User(Base):
         back_populates="user"
     )
 
+    beneficiaries = relationship(
+        "Beneficiary",
+        back_populates="user"
+    )
+
+    loan_applications = relationship(
+        "LoanApplication",
+        back_populates="user"
+    )
+
+    financial_health_score = relationship(
+        "FinancialHealthScore",
+        back_populates="user",
+        uselist=False
+    )
+
 class Account(Base):
     __tablename__ = "accounts"
 
@@ -232,3 +248,81 @@ class Transaction(Base):
         "Account",
         back_populates="transactions"
     )
+
+
+class Transfer(Base):
+    __tablename__ = "transfers"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    source_account_id = Column(
+        Integer,
+        ForeignKey("accounts.id"),
+        nullable=False
+    )
+
+    destination_account_id = Column(
+        Integer,
+        ForeignKey("accounts.id"),
+        nullable=False
+    )
+
+    amount = Column(Float, nullable=False)
+    description = Column(String, nullable=True)
+    status = Column(String, default="COMPLETED")
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    source_account = relationship(
+        "Account",
+        foreign_keys=[source_account_id]
+    )
+
+    destination_account = relationship(
+        "Account",
+        foreign_keys=[destination_account_id]
+    )
+
+class Beneficiary(Base):
+    __tablename__ = "beneficiaries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    beneficiary_name = Column(String, nullable=False)
+    beneficiary_account_number = Column(String, nullable=False)
+    bank_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="beneficiaries")
+
+
+class LoanApplication(Base):
+    __tablename__ = "loan_applications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    loan_amount = Column(Float, nullable=False)
+    tenure_months = Column(Integer, nullable=False)
+    annual_income = Column(Float, nullable=False)
+    existing_loans = Column(Integer, default=0)
+    approval_status = Column(String, default="PENDING")
+    risk_assessment = Column(String, nullable=True)
+    default_probability = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="loan_applications")
+
+
+class FinancialHealthScore(Base):
+    __tablename__ = "financial_health_scores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    overall_score = Column(Float, nullable=False)
+    score_category = Column(String, nullable=False)
+    balance_score = Column(Float, nullable=False)
+    transaction_score = Column(Float, nullable=False)
+    credit_score = Column(Float, nullable=False)
+    last_updated = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="financial_health_score")

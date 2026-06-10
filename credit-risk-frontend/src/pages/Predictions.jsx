@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Navbar from "../components/Navbar";
 import LoanForm from "../components/LoanForm";
 import PredictionCard from "../components/PredictionCard";
 import HistoryTable from "../components/HistoryTable";
@@ -69,9 +68,6 @@ export default function Predictions() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-
-      <Navbar />
-
       <div className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <LoanForm
